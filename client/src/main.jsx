@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
+import CatalogPage from './pages/CatalogPage.jsx';
 import './styles.css';
 
 function AuthGate(){
@@ -13,4 +14,7 @@ function AuthGate(){
   if(!status)return <div className="hint" style={{padding:24}}>{error||'正在连接…'}</div>;
   return <main style={{maxWidth:420,margin:'10vh auto',padding:24}}><form className="card" onSubmit={submit}><h2>{status.initialized?'登录 ALSVID':'设置管理员账号'}</h2><p className="hint">{status.initialized?'请输入管理员账号和密码。':'首次使用请创建管理员账号，密码为 8–20 个字符。'}</p><div className="field"><label>账号</label><input autoComplete="username" value={username} onChange={e=>setUsername(e.target.value)} required /></div><div className="field"><label>密码</label><input type="password" autoComplete={status.initialized?'current-password':'new-password'} value={password} onChange={e=>setPassword(e.target.value)} required minLength={status.initialized?1:8} maxLength={status.initialized?200:20} /></div>{error&&<p className="error-text">{error}</p>}<button className="btn primary" disabled={busy} type="submit">{busy?'处理中…':status.initialized?'登录':'创建并登录'}</button></form></main>;
 }
-createRoot(document.getElementById('root')).render(<AuthGate />);
+const catalogRoute = window.location.pathname.match(/^\/catalog\/(zh|en|de)(?:\/([^/]+))?\/?$/);
+let productId;
+try { productId = catalogRoute?.[2] ? decodeURIComponent(catalogRoute[2]) : undefined; } catch (_) { productId = catalogRoute[2]; }
+createRoot(document.getElementById('root')).render(catalogRoute ? <CatalogPage lang={catalogRoute[1]} productId={productId} /> : <AuthGate />);

@@ -12,7 +12,8 @@ const { createAuth } = require('./auth');
 const { createInventory } = require('./inventory');
 const { createCompleteProductStore } = require('./create-complete');
 const { runAsActor, currentActor } = require('./audit-context');
-const { mayAccessInternalApi } = require('./access-policy');
+const { apiAccessHook } = require('./access-policy');
+const { createCatalogStore, registerCatalogRoutes } = require('./catalog');
 
 const PORT = Number(process.env.PORT || 8089);
 const app = Fastify({ logger: false, bodyLimit: 30 * 1024 * 1024 });
@@ -32,15 +33,7 @@ const postgres = process.env.DATABASE_URL ? createDictionaryStore(process.env.DA
 const auth = process.env.DATABASE_URL ? createAuth(process.env.DATABASE_URL) : null;
 const authAttempts = new Map();
 function sessionToken(req) { const match=String(req.headers.cookie||'').match(/(?:^|;\s*)alsvid_session=([A-Za-z0-9_-]{43})(?:;|$)/); return match?.[1]||''; }
-app.addHook('onRequest',async(req,reply)=>{
-  const pathname=req.raw.url.split('?')[0];
-  if(!pathname.startsWith('/api/')||pathname==='/api/health'||pathname.startsWith('/api/auth/'))return;
-  if(!auth)return reply.code(503).send({error:'账号服务不可用'});
-  const user=await auth.user(sessionToken(req));
-  if(!user)return reply.code(401).send({error:'请先登录'});
-  if(!mayAccessInternalApi(user.role,req.method,pathname))return reply.code(403).send({error:'没有访问权限'});
-  req.user=user;
-});
+app.addHook('onRequest',apiAccessHook(auth,sessionToken));
 app.addHook('onRequest',(req,reply,done)=>runAsActor(req.user?.username||'system',done));
 app.get('/api/auth/status',async req=>({initialized:auth?await auth.hasUsers():false,user:auth?await auth.user(sessionToken(req)):null}));
 app.post('/api/auth/setup',async(req,reply)=>{if(!auth)return reply.code(503).send({error:'账号服务不可用'});try{await auth.setup(req.body?.username,req.body?.password);return reply.code(201).send({ok:true});}catch(e){const allowed=['管理员已设置','请输入有效邮箱或 3–64 位字母、数字、. _ - 账号','密码须为 8–20 个字符'];return reply.code(400).send({error:allowed.includes(e.message)?e.message:'管理员设置失败'});}});
@@ -56,6 +49,8 @@ const pgService = process.env.DATABASE_URL ? createServiceStore(process.env.DATA
 const inventory = process.env.DATABASE_URL ? createInventory(process.env.DATABASE_URL) : null;
 const completeProducts = process.env.DATABASE_URL ? createCompleteProductStore(process.env.DATABASE_URL) : null;
 const objectStorage = createObjectStorage();
+const catalog = process.env.DATABASE_URL ? createCatalogStore(process.env.DATABASE_URL) : null;
+registerCatalogRoutes(app, { catalog, objectStorage });
 const db = postgres ? null : store.load();
 const persist = () => store.save(db);
 function audit(action, target, before, after) {
