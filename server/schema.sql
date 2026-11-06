@@ -362,3 +362,6 @@ create table if not exists production_delivery_receipts (
  received_at timestamptz not null default now()
 );
 create index if not exists production_delivery_receipts_delivery_idx on production_delivery_receipts(delivery_id,received_at);
+
+alter table production_deliveries add column if not exists freight_cost numeric(14,2) not null default 0 check (freight_cost >= 0);
+alter table production_deliveries add column if not exists import_cost numeric(14,2) not null default 0 check (import_cost >= 0);
