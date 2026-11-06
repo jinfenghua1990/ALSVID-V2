@@ -385,6 +385,9 @@ app.get('/api/summary', async () => pgService ? pgService.summary() : ({
   audits: (db.auditLog || []).length,
 }));
 
+app.get('/api/factories',async(req,reply)=>postgres?postgres.listFactories():reply.code(503).send({error:'工厂服务不可用'}));
+app.post('/api/factories',async(req,reply)=>{if(!postgres)return reply.code(503).send({error:'工厂服务不可用'});try{return reply.code(201).send(await postgres.createFactory(req.body||{}))}catch(e){return reply.code(e.code==='23505'?409:400).send({error:e.code==='23505'?'工厂名称已存在':e.message==='工厂名称必填且不能超过 120 个字符'?e.message:'创建工厂失败'})}});
+app.patch('/api/factories/:id',async(req,reply)=>{if(!postgres)return reply.code(503).send({error:'工厂服务不可用'});try{return await postgres.updateFactory(req.params.id,req.body||{})}catch(e){return reply.code(e.code==='23505'?409:e.message==='工厂不存在'?404:400).send({error:e.code==='23505'?'工厂名称已存在':e.message==='工厂不存在'||e.message==='工厂资料无效'?e.message:'更新工厂失败'})}});
 app.get('/api/warehouses',async(req,reply)=>inventory?inventory.listWarehouses():reply.code(503).send({error:'库存服务不可用'}));
 app.get('/api/stock',async(req,reply)=>inventory?inventory.listStock():reply.code(503).send({error:'库存服务不可用'}));
 app.get('/api/stock/movements',async(req,reply)=>inventory?inventory.listMovements():reply.code(503).send({error:'库存服务不可用'}));
