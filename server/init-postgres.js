@@ -1,0 +1,4 @@
+const fs=require('node:fs');const path=require('node:path');const {Client}=require('pg');const {createDictionaryStore}=require('./postgres-dictionaries');
+async function init(){if(!process.env.DATABASE_URL)throw Error('DATABASE_URL is required');const client=new Client({connectionString:process.env.DATABASE_URL,connectionTimeoutMillis:10000});try{await client.connect();const sql=fs.readFileSync(path.join(__dirname,'schema.sql'),'utf8').replace(/--[^\r\n]*/g,'');for(const statement of sql.split(';').map(x=>x.trim()).filter(Boolean))await client.query(statement);}finally{await client.end().catch(()=>{});}const dict=createDictionaryStore(process.env.DATABASE_URL);try{await dict.seedBaseline();}finally{await dict.close();}}
+if(require.main===module)init().then(()=>console.log('ALSVID V2 schema and standard dictionaries are ready.')).catch(()=>{console.error('Database initialization failed; no secret values were logged.');process.exitCode=1;});
+module.exports={init};

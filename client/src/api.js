@@ -1,0 +1,56 @@
+const BASE = '';
+
+async function req(method, url, body) {
+  const res = await fetch(BASE + url, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((data && data.error) || `请求失败 (${res.status})`);
+  return data;
+}
+
+export const api = {
+  meta: () => req('GET', '/api/meta'),
+  fields: () => req('GET', '/api/fields'),
+  addField: (f) => req('POST', '/api/fields', f),
+  updateField: (code, f) => req('PUT', `/api/fields/${code}`, f),
+  colors: () => req('GET', '/api/colors'),
+  addColor: (c) => req('POST', '/api/colors', c),
+  updateColor: (code, c) => req('PUT', `/api/colors/${code}`, c),
+  products: (kind) => req('GET', '/api/products' + (kind ? `?kind=${kind}` : '')),
+  product: (id) => req('GET', `/api/products/${id}`),
+  createProduct: (p) => req('POST', '/api/products', p),
+  updateProduct: async (id, p) => { const current = await req('GET', `/api/products/${id}`); return req('PUT', `/api/products/${id}`, { ...p, version: current.version }); },
+  uploadMedia: async (id, file) => { const res = await fetch(`/api/products/${encodeURIComponent(id)}/media`, { method: 'POST', headers: { 'Content-Type': file.type, 'X-File-Name': encodeURIComponent(file.name) }, body: file }); const data = await res.json().catch(() => null); if (!res.ok) throw new Error(data?.error || '图片上传失败'); return data; },
+  deleteProduct: (id) => req('DELETE', `/api/products/${id}`),
+  saveBom: (id, bom) => req('PUT', `/api/products/${id}/bom`, bom),
+  bomVersions: (id) => req('GET', `/api/products/${encodeURIComponent(id)}/bom/versions`),
+  bomVersion: (id, version) => req('GET', `/api/products/${encodeURIComponent(id)}/bom/versions/${encodeURIComponent(version)}`),
+  addSkus: (id, items) => req('POST', `/api/products/${id}/skus`, items),
+  deleteSku: (id, sku) => req('DELETE', `/api/products/${id}/skus/${encodeURIComponent(sku)}`),
+  search: (q) => req('GET', `/api/search?q=${encodeURIComponent(q)}`),
+  summary: () => req('GET', '/api/summary'),
+  productionOrders: () => req('GET','/api/production-orders'),
+  createProductionOrder: (order) => req('POST','/api/production-orders',order),
+  transitionProductionOrder: (id,status) => req('PATCH',`/api/production-orders/${encodeURIComponent(id)}/status`,{status}),
+  vins: (q = '') => req('GET', `/api/vins${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  createVin: (v) => req('POST', '/api/vins', v),
+  updateVin: (id, v) => req('PATCH', `/api/vins/${id}`, v),
+  vinTrace: (id) => req('GET', `/api/vins/${id}/trace`),
+  replaceInstalled: (id, items) => req('PUT', `/api/vins/${id}/installed`, { items }),
+  repairs: (q = '') => req('GET', `/api/repairs${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+  createRepair: (r) => req('POST', '/api/repairs', r),
+  updateRepair: (id, r) => req('PATCH', `/api/repairs/${id}`, r),
+  completeRepair: (id, body) => req('POST', `/api/repairs/${encodeURIComponent(id)}/complete`,body),
+  oldPart: (id) => req('GET', `/api/repairs/${encodeURIComponent(id)}/old-part`),
+  updateOldPart: (id, body) => req('POST', `/api/repairs/${encodeURIComponent(id)}/old-part`,body),
+  oldPartRestock: (id, action, body={}) => req('POST', `/api/repairs/${encodeURIComponent(id)}/old-part/restock/${action}`,body),
+  repairStock: (id) => req('GET', `/api/repairs/${encodeURIComponent(id)}/stock`),
+  repairStockMove: (id,move) => req('POST', `/api/repairs/${encodeURIComponent(id)}/stock`,move),
+  warehouses: () => req('GET','/api/warehouses'),
+  substitutes: () => req('GET', '/api/substitutes'),
+  createSubstitute: (s) => req('POST', '/api/substitutes', s),
+  updateSubstitute: (id, s) => req('PATCH', `/api/substitutes/${id}`, s),
+};
