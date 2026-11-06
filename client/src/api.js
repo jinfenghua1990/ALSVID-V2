@@ -43,6 +43,7 @@ export const api = {
   uploadProductionAttachment: async (id,file) => { const r=await fetch(`/api/production-orders/${encodeURIComponent(id)}/attachments`,{method:'POST',headers:{'Content-Type':file.type,'X-File-Name':encodeURIComponent(file.name)},body:file});const data=await r.json().catch(()=>null);if(!r.ok)throw new Error(data?.error||'附件上传失败');return data;},
   productionMaterials: (id) => req('GET',`/api/production-orders/${encodeURIComponent(id)}/materials`),
   updateProductionMaterial: (id,materialId,supplyParty) => req('PATCH',`/api/production-orders/${encodeURIComponent(id)}/materials/${encodeURIComponent(materialId)}`,{supplyParty}),
+  productionCosts: () => req('GET','/api/finance/production-costs'),
   productionOrders: () => req('GET','/api/production-orders'),
   createProductionOrder: (order) => req('POST','/api/production-orders',order),
   transitionProductionOrder: (id,status) => req('PATCH',`/api/production-orders/${encodeURIComponent(id)}/status`,{status}),
