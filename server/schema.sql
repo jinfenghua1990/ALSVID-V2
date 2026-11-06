@@ -310,3 +310,5 @@ create table if not exists production_order_events (
  actor text not null,
  created_at timestamptz not null default now()
 );
+
+alter table production_deliveries add column if not exists receipt_note text not null default '';
