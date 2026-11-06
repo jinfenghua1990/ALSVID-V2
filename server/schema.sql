@@ -293,3 +293,20 @@ create table if not exists production_deliveries (
   received_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table production_orders add column if not exists factory_id text references factories(id);
+alter table production_orders add column if not exists progress_percent integer not null default 0 check (progress_percent between 0 and 100);
+alter table production_orders add column if not exists actual_quantity integer not null default 0 check (actual_quantity >= 0);
+alter table production_orders add column if not exists qc_status text not null default '待质检' check (qc_status in ('待质检','合格','不合格'));
+alter table production_orders add column if not exists qc_note text not null default '';
+create table if not exists production_order_events (
+ id text primary key,
+ order_id text not null references production_orders(id),
+ event_type text not null check (event_type in ('进度更新','质检更新')),
+ progress_percent integer,
+ actual_quantity integer,
+ qc_status text,
+ note text not null default '',
+ actor text not null,
+ created_at timestamptz not null default now()
+);
