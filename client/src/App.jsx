@@ -8,6 +8,7 @@ import { ServicePage } from './pages/ServicePage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
 import ProductionPage from './pages/ProductionPage.jsx';
 import InventoryPage from './pages/InventoryPage.jsx';
+import FactoriesPage from './pages/FactoriesPage.jsx';
 import { StorageBadge } from './cloud.jsx';
 
 const DOMAINS = [
@@ -111,7 +112,7 @@ export default function App({ user, onLogout }) {
       <aside className="side"><div className="side__title">{domainLabel}</div>{domain === 'product' ? <><button className={'side__item' + (view.type === 'list' && view.kind === 'vehicle' ? ' is-active' : '')} onClick={() => setView({ type: 'list', kind: 'vehicle' })}><span className="side__dot" />整车产品</button><button className={'side__item' + (view.type === 'list' && view.kind === 'part' ? ' is-active' : '')} onClick={() => setView({ type: 'list', kind: 'part' })}><span className="side__dot" />零配件</button></> : domain === 'service' ? <>{[['vin','VIN 车辆档案'],['repair','维修工单'],['fit','配件适配'],['substitute','配件替代']].map(([k, label]) => <button key={k} className={'side__item' + (view.type === 'service' && serviceSection === k ? ' is-active' : '')} onClick={() => { setServiceSection(k); setView({ type: 'service', section: k }); }}><span className="side__dot" />{label}</button>)}</> : domain === 'workbench' ? <div className="side__item is-active"><span className="side__dot" />经营概览</div> : <div className="side__item is-active"><span className="side__dot" />{domain === 'supply' ? '生产订单' : domain === 'settings' ? '账号与权限' : '当前阶段预留'}</div>}</aside>
 
       <main className="work"><div className="view" key={`${view.type}-${view.kind || view.domain || view.id || view.section}`}>
-        {domain === 'supply' && <div className="tabs"><button className={'tab'+(view.type==='production'?' active':'')} onClick={()=>setView({type:'production'})}>生产订单</button><button className={'tab'+(view.type==='inventory'?' active':'')} onClick={()=>setView({type:'inventory'})}>仓库与库存</button></div>}
+        {domain === 'supply' && <div className="tabs"><button className={'tab'+(view.type==='production'?' active':'')} onClick={()=>setView({type:'production'})}>生产订单</button><button className={'tab'+(view.type==='inventory'?' active':'')} onClick={()=>setView({type:'inventory'})}>仓库与库存</button><button className={'tab'+(view.type==='factories'?' active':'')} onClick={()=>setView({type:'factories'})}>合作工厂</button></div>}
         {view.type === 'list' && <ListPage kind={view.kind} meta={meta} onEdit={(id) => setView({ type: 'editor', id, fromKind: view.kind })} onCreate={(kind) => setView({ type: 'create', kind })} />}
         {view.type === 'create' && <CreateProductPage kind={view.kind} meta={meta} user={user} onBack={()=>setView({type:'list',kind:view.kind})} onCreated={(p)=>setView({type:'editor',id:p.id,fromKind:view.kind})} />}
         {view.type === 'editor' && <EditorPage id={view.id} meta={meta} onBack={() => setView({ type: 'list', kind: view.fromKind || 'vehicle' })} />}
@@ -120,6 +121,7 @@ export default function App({ user, onLogout }) {
         {view.type === 'accounts' && <AccountPage user={user} onLogout={onLogout} />}
         {view.type === 'production' && <ProductionPage />}
         {view.type === 'inventory' && <InventoryPage />}
+        {view.type === 'factories' && <FactoriesPage />}
         {view.type === 'placeholder' && <div className="card placeholder"><div className="placeholder-mark">{DOMAINS.find(d => d.key === view.domain)?.icon}</div><h2>{domainLabel}</h2><p>该业务域已纳入 ALSVID V2.0 一级架构，当前阶段先建设内部产品 Admin。</p><span className="hint">数据模型与权限挂载点已预留，后续按阶段接入。</span></div>}
       </div></main>
 
