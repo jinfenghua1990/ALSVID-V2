@@ -343,3 +343,12 @@ create table if not exists production_order_attachments (
  uploaded_by text not null,
  created_at timestamptz not null default now()
 );
+
+alter table warehouses add column if not exists warehouse_code text;
+update warehouses set warehouse_code='WH-'||upper(substr(replace(id,'-',''),1,8)) where warehouse_code is null or warehouse_code='';
+alter table warehouses alter column warehouse_code set not null;
+create unique index if not exists warehouses_code_unique on warehouses(warehouse_code);
+alter table warehouses add column if not exists address text not null default '';
+alter table warehouses add column if not exists status text not null default '启用' check (status in ('启用','停用'));
+alter table warehouses drop constraint if exists warehouses_kind_check;
+alter table warehouses add constraint warehouses_kind_check check (kind in ('国内仓','维修店仓','海外仓'));
