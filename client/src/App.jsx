@@ -8,6 +8,7 @@ import { ServicePage } from './pages/ServicePage.jsx';
 import AccountPage from './pages/AccountPage.jsx';
 import ProductionPage from './pages/ProductionPage.jsx';
 import InventoryPage from './pages/InventoryPage.jsx';
+import { StorageBadge } from './cloud.jsx';
 
 const DOMAINS = [
   { key: 'workbench', icon: '🏠', label: '工作台' },
@@ -100,6 +101,7 @@ export default function App({ user, onLogout }) {
             <input type="search" autoComplete="off" placeholder="全局搜索 SKU / 产品 / 颜色 / 字段" aria-label="全局搜索" value={q} onChange={e => onSearch(e.target.value)} />
             {results !== null && q.trim() && <div className="search-results">{results.length ? results.map(r => <div key={r.id} className="sr-item" onClick={() => gotoResult(r)}><span className="tag">{r.kind === 'vehicle' ? '整车' : '配件'}</span><span className="link">{r.name}</span><span className="hint">{r.model ? r.model + ' · ' : ''}{tplName(r.productType)}</span><span className="hint" style={{ marginLeft: 'auto' }}>SKU × {r.skuCount}</span></div>) : <div className="sr-empty">未找到匹配的产品、配件或字段值</div>}</div>}
           </div>
+          <StorageBadge />
           <div className="alsvid-topbar__theme" role="group" aria-label="顶栏配色">{['light', 'dark'].map(t => <button key={t} type="button" className={theme === t ? 'is-on' : ''} onClick={() => { setTheme(t); localStorage.setItem('alsvid-v2-theme', t); }}>{t === 'light' ? '浅色' : '深色'}</button>)}</div>
           <button className="alsvid-topbar__tool" title="刷新" type="button" onClick={() => window.location.reload()}><svg viewBox="0 0 16 16"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2v3h-3" /></svg></button>
           <button className="alsvid-topbar__tool" title="全屏" type="button" onClick={() => document.documentElement.requestFullscreen?.()}><svg viewBox="0 0 16 16"><path d="M6 2H2v4M10 2h4v4M6 14H2v-4M10 14h4v-4" /></svg></button>
