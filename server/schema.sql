@@ -264,3 +264,15 @@ create table if not exists old_part_restock_requests (
 alter table bom_version_items add column if not exists drawing_media_id text references product_media(id);
 alter table bom_version_items add column if not exists drawing_x double precision;
 alter table bom_version_items add column if not exists drawing_y double precision;
+create table if not exists factories (
+  id text primary key,
+  name text not null unique,
+  country text not null default '中国',
+  contact text not null default '',
+  email text not null default '',
+  phone text not null default '',
+  address text not null default '',
+  status text not null default '启用' check (status in ('启用','停用')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
