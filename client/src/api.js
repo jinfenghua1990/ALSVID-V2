@@ -42,6 +42,8 @@ export const api = {
   productionOrders: () => req('GET','/api/production-orders'),
   createProductionOrder: (order) => req('POST','/api/production-orders',order),
   transitionProductionOrder: (id,status) => req('PATCH',`/api/production-orders/${encodeURIComponent(id)}/status`,{status}),
+  updateProductionProgress: (id,body) => req('PATCH',`/api/production-orders/${encodeURIComponent(id)}/progress`,body),
+  updateProductionQuality: (id,body) => req('PATCH',`/api/production-orders/${encodeURIComponent(id)}/quality`,body),
   vins: (q = '') => req('GET', `/api/vins${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   createVin: (v) => req('POST', '/api/vins', v),
   updateVin: (id, v) => req('PATCH', `/api/vins/${id}`, v),
