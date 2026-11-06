@@ -352,3 +352,13 @@ alter table warehouses add column if not exists address text not null default ''
 alter table warehouses add column if not exists status text not null default '启用' check (status in ('启用','停用'));
 alter table warehouses drop constraint if exists warehouses_kind_check;
 alter table warehouses add constraint warehouses_kind_check check (kind in ('国内仓','维修店仓','海外仓'));
+
+create table if not exists production_delivery_receipts (
+ id text primary key,
+ delivery_id text not null references production_deliveries(id),
+ received_quantity integer not null check (received_quantity > 0),
+ note text not null default '',
+ received_by text not null,
+ received_at timestamptz not null default now()
+);
+create index if not exists production_delivery_receipts_delivery_idx on production_delivery_receipts(delivery_id,received_at);
