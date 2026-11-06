@@ -276,3 +276,20 @@ create table if not exists factories (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table warehouses drop constraint if exists warehouses_kind_check;
+alter table warehouses add constraint warehouses_kind_check check (kind in ('国内仓','维修店仓','海外仓'));
+create table if not exists production_deliveries (
+  id text primary key,
+  order_id text not null references production_orders(id),
+  shipment_no text not null unique,
+  warehouse_id text not null references warehouses(id),
+  planned_quantity integer not null check (planned_quantity > 0),
+  received_quantity integer check (received_quantity > 0),
+  status text not null default '待发运' check (status in ('待发运','在途','已入库')),
+  note text not null default '',
+  received_by text,
+  shipped_at timestamptz,
+  received_at timestamptz,
+  created_at timestamptz not null default now()
+);
