@@ -36,6 +36,7 @@ export const api = {
   createFactory: (factory) => req('POST','/api/factories',factory),
   updateFactory: (id,patch) => req('PATCH',`/api/factories/${encodeURIComponent(id)}`,patch),
   productionDeliveries: (id) => req('GET',`/api/production-orders/${encodeURIComponent(id)}/deliveries`),
+  deliveryReceipts: (id) => req('GET',`/api/production-deliveries/${encodeURIComponent(id)}/receipts`),
   createProductionDelivery: (id,body) => req('POST',`/api/production-orders/${encodeURIComponent(id)}/deliveries`,body),
   dispatchProductionDelivery: (id) => req('POST',`/api/production-deliveries/${encodeURIComponent(id)}/dispatch`,{}),
   receiveProductionDelivery: (id,body) => req('POST',`/api/production-deliveries/${encodeURIComponent(id)}/receive`,body),
