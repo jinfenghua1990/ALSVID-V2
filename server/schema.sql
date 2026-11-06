@@ -162,6 +162,13 @@ create index if not exists vin_installed_serial_idx on vin_installed(serial_no) 
 create index if not exists vin_installed_batch_idx on vin_installed(batch_no) where batch_no <> '';
 create unique index if not exists skus_code_unique on skus(code);
 create index if not exists products_kind_status_idx on products(kind, status);
+create table if not exists catalog_publications (
+  product_id text primary key references products(id),
+  draft jsonb not null,
+  published jsonb,
+  revision integer not null default 1 check (revision > 0),
+  published_revision integer
+);
 create table if not exists app_users (
   id text primary key,
   username text not null unique,
