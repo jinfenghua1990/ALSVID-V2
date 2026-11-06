@@ -14,7 +14,7 @@ function createNetworkPolicy({port,bindHost='127.0.0.1',publicOrigins=''}) {
   function isPublicHost(host){return publicHosts.has(String(host||'').toLowerCase())}
   function allows(host,origin,method){
     host=String(host||'').toLowerCase();
-    if(localHosts.has(host))return !origin||origin===`http://${host}`;
+    if(localHosts.has(host))return bindHost==='127.0.0.1'&&(!origin||origin===`http://${host}`);
     const expected=publicHosts.get(host);if(!expected)return false;
     if(origin)return origin===expected;
     return ['GET','HEAD','OPTIONS'].includes(String(method||'').toUpperCase());
