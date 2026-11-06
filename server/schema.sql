@@ -320,3 +320,15 @@ alter table production_orders add column if not exists processing_cost numeric(1
 alter table production_orders add column if not exists freight_cost numeric(14,2) not null default 0 check (freight_cost >= 0);
 alter table production_orders add column if not exists import_cost numeric(14,2) not null default 0 check (import_cost >= 0);
 alter table production_orders add column if not exists cost_currency text not null default 'CNY';
+
+create table if not exists production_order_materials (
+ id bigserial primary key,
+ order_id text not null references production_orders(id),
+ bom_item_id bigint not null references bom_version_items(id),
+ sku_code text not null references skus(code),
+ section text not null default '',
+ quantity numeric not null check (quantity > 0),
+ unit text not null default '件',
+ supply_party text not null default '工厂' check (supply_party in ('工厂','ALSVID')),
+ unique(order_id,bom_item_id)
+);
