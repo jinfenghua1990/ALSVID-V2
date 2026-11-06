@@ -7,7 +7,7 @@ async function req(method, url, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error((data && data.error) || `请求失败 (${res.status})`);
+  if (!res.ok) { const error = new Error((data && data.error) || `请求失败 (${res.status})`); error.status = res.status; throw error; }
   return data;
 }
 
