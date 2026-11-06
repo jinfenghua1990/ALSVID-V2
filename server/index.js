@@ -12,21 +12,16 @@ const { createAuth } = require('./auth');
 const { createInventory } = require('./inventory');
 const { createCompleteProductStore } = require('./create-complete');
 const { runAsActor, currentActor } = require('./audit-context');
+const { createNetworkPolicy } = require('./network-policy');
 
 const PORT = Number(process.env.PORT || 8089);
 const app = Fastify({ logger: false, bodyLimit: 30 * 1024 * 1024 });
-// Until account authentication is available, accept browser requests only
-// through this machine's loopback names, and reject cross-origin requests.
-const allowedHosts = new Set([`localhost:${PORT}`, `127.0.0.1:${PORT}`, `[::1]:${PORT}`]);
+// Public mode is opt-in and requires exact HTTPS origins.
+const networkPolicy=createNetworkPolicy({port:PORT,bindHost:process.env.ALSVID_BIND_HOST||'127.0.0.1',publicOrigins:process.env.ALSVID_PUBLIC_ORIGINS||''});
 app.addHook('onRequest', async (req, reply) => {
-  const host=String(req.headers.host||'').toLowerCase();
-  if(!allowedHosts.has(host)) return reply.code(403).send({error:'仅允许本机访问'});
-  const origin=req.headers.origin;
-  if(origin) {
-    try { const u=new URL(origin); if(u.protocol!=='http:'||!allowedHosts.has(u.host.toLowerCase())||u.host.toLowerCase()!==host) return reply.code(403).send({error:'请求来源不受信任'}); }
-    catch (_) { return reply.code(403).send({error:'请求来源不受信任'}); }
-  }
+  if(!networkPolicy.allows(req.headers.host,req.headers.origin,req.method))return reply.code(403).send({error:'请求来源不受信任'});
 });
+const cookieSecurity=req=>networkPolicy.isPublicHost(req.headers.host)?'; Secure':'';
 const postgres = process.env.DATABASE_URL ? createDictionaryStore(process.env.DATABASE_URL) : null;
 const auth = process.env.DATABASE_URL ? createAuth(process.env.DATABASE_URL) : null;
 const authAttempts = new Map();
@@ -43,12 +38,12 @@ app.addHook('onRequest',async(req,reply)=>{
 app.addHook('onRequest',(req,reply,done)=>runAsActor(req.user?.username||'system',done));
 app.get('/api/auth/status',async req=>({initialized:auth?await auth.hasUsers():false,user:auth?await auth.user(sessionToken(req)):null}));
 app.post('/api/auth/setup',async(req,reply)=>{if(!auth)return reply.code(503).send({error:'账号服务不可用'});try{await auth.setup(req.body?.username,req.body?.password);return reply.code(201).send({ok:true});}catch(e){const allowed=['管理员已设置','请输入有效邮箱或 3–64 位字母、数字、. _ - 账号','密码须为 8–20 个字符'];return reply.code(400).send({error:allowed.includes(e.message)?e.message:'管理员设置失败'});}});
-app.post('/api/auth/login',async(req,reply)=>{if(!auth)return reply.code(503).send({error:'账号服务不可用'});const key=req.ip,now=Date.now();let a=authAttempts.get(key);if(!a||now>a.until)a={count:0,until:now+15*60*1000};if(a.count>=10)return reply.code(429).send({error:'尝试次数过多，请稍后重试'});const result=await auth.login(req.body?.username,req.body?.password);if(!result){a.count++;authAttempts.set(key,a);return reply.code(401).send({error:'账号或密码错误'});}authAttempts.delete(key);reply.header('Set-Cookie',`alsvid_session=${result.token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200`);return{user:result.user};});
-app.post('/api/auth/logout',async(req,reply)=>{if(auth)await auth.logout(sessionToken(req));reply.header('Set-Cookie','alsvid_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return{ok:true};});
+app.post('/api/auth/login',async(req,reply)=>{if(!auth)return reply.code(503).send({error:'账号服务不可用'});const key=req.ip,now=Date.now();let a=authAttempts.get(key);if(!a||now>a.until)a={count:0,until:now+15*60*1000};if(a.count>=10)return reply.code(429).send({error:'尝试次数过多，请稍后重试'});const result=await auth.login(req.body?.username,req.body?.password);if(!result){a.count++;authAttempts.set(key,a);return reply.code(401).send({error:'账号或密码错误'});}authAttempts.delete(key);reply.header('Set-Cookie',`alsvid_session=${result.token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${cookieSecurity(req)}`);return{user:result.user};});
+app.post('/api/auth/logout',async(req,reply)=>{if(auth)await auth.logout(sessionToken(req));reply.header('Set-Cookie',`alsvid_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${cookieSecurity(req)}`);return{ok:true};});
 app.get('/api/accounts',async(req,reply)=>req.user.role==='admin'?auth.listUsers():reply.code(403).send({error:'仅管理员可管理账号'}));
 app.post('/api/accounts',async(req,reply)=>{try{return reply.code(201).send(await auth.createUser(req.body||{},req.user.username))}catch(e){const allowed=['请输入有效邮箱或 3–64 位字母、数字、. _ - 账号','密码须为 8–20 个字符','角色无效'];return reply.code(e.code==='23505'?409:400).send({error:e.code==='23505'?'账号已存在':allowed.includes(e.message)?e.message:'创建账号失败'});}});
 app.patch('/api/accounts/:id',async(req,reply)=>{try{return await auth.updateUser(req.params.id,req.body||{},req.user.username)}catch(e){const allowed=['角色无效','状态无效','账号不存在','至少保留一个启用的管理员'];return reply.code(e.message==='账号不存在'?404:400).send({error:allowed.includes(e.message)?e.message:'更新账号失败'});}});
-app.post('/api/account/password',async(req,reply)=>{try{if(typeof req.body?.oldPassword!=='string')return reply.code(400).send({error:'请输入原密码'});await auth.setPassword(req.user.id,req.body?.newPassword,req.user.username,req.body.oldPassword);reply.header('Set-Cookie','alsvid_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return{ok:true};}catch(e){const allowed=['原密码不正确','密码须为 8–20 个字符'];return reply.code(400).send({error:allowed.includes(e.message)?e.message:'修改密码失败'});}});
+app.post('/api/account/password',async(req,reply)=>{try{if(typeof req.body?.oldPassword!=='string')return reply.code(400).send({error:'请输入原密码'});await auth.setPassword(req.user.id,req.body?.newPassword,req.user.username,req.body.oldPassword);reply.header('Set-Cookie',`alsvid_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${cookieSecurity(req)}`);return{ok:true};}catch(e){const allowed=['原密码不正确','密码须为 8–20 个字符'];return reply.code(400).send({error:allowed.includes(e.message)?e.message:'修改密码失败'});}});
 app.post('/api/accounts/:id/password',async(req,reply)=>{if(req.params.id===req.user.id)return reply.code(400).send({error:'请使用修改自己密码功能'});try{await auth.setPassword(req.params.id,req.body?.newPassword,req.user.username);return{ok:true};}catch(e){const allowed=['账号不存在','密码须为 8–20 个字符'];return reply.code(e.message==='账号不存在'?404:400).send({error:allowed.includes(e.message)?e.message:'重置密码失败'});}});
 const pgProducts = process.env.DATABASE_URL ? createProductStore(process.env.DATABASE_URL) : null;
 const pgService = process.env.DATABASE_URL ? createServiceStore(process.env.DATABASE_URL) : null;
@@ -526,7 +521,7 @@ function logFatal(tag, e) {
 process.on('uncaughtException', (e) => { logFatal('uncaughtException', e); process.exit(1); });
 process.on('unhandledRejection', (e) => logFatal('unhandledRejection', e));
 
-app.listen({ port: PORT, host: '127.0.0.1' }).then(() => {
+app.listen({ port: PORT, host: networkPolicy.bindHost }).then(() => {
   console.log(`ALSVID V2.0 内部管理系统已启动: http://localhost:${PORT}`);
 }).catch((e) => {
   logFatal('listenFailed', e);
