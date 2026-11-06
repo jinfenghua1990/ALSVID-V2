@@ -12,6 +12,7 @@ const { createAuth } = require('./auth');
 const { createInventory } = require('./inventory');
 const { createCompleteProductStore } = require('./create-complete');
 const { runAsActor, currentActor } = require('./audit-context');
+const { mayAccessInternalApi } = require('./access-policy');
 
 const PORT = Number(process.env.PORT || 8089);
 const app = Fastify({ logger: false, bodyLimit: 30 * 1024 * 1024 });
@@ -37,7 +38,7 @@ app.addHook('onRequest',async(req,reply)=>{
   if(!auth)return reply.code(503).send({error:'账号服务不可用'});
   const user=await auth.user(sessionToken(req));
   if(!user)return reply.code(401).send({error:'请先登录'});
-  if(user.role!=='admin'&&!['GET','HEAD'].includes(req.method)&&pathname!=='/api/account/password')return reply.code(403).send({error:'没有修改权限'});
+  if(!mayAccessInternalApi(user.role,req.method,pathname))return reply.code(403).send({error:'没有访问权限'});
   req.user=user;
 });
 app.addHook('onRequest',(req,reply,done)=>runAsActor(req.user?.username||'system',done));
