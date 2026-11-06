@@ -332,3 +332,14 @@ create table if not exists production_order_materials (
  supply_party text not null default '工厂' check (supply_party in ('工厂','ALSVID')),
  unique(order_id,bom_item_id)
 );
+
+create table if not exists production_order_attachments (
+ id text primary key,
+ order_id text not null references production_orders(id),
+ object_key text not null unique,
+ file_name text not null,
+ content_type text not null,
+ file_size bigint not null check (file_size > 0),
+ uploaded_by text not null,
+ created_at timestamptz not null default now()
+);
