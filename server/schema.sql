@@ -312,3 +312,11 @@ create table if not exists production_order_events (
 );
 
 alter table production_deliveries add column if not exists receipt_note text not null default '';
+
+alter table production_orders add column if not exists sourcing_mode text not null default '工厂包工包料' check (sourcing_mode in ('工厂包工包料','客供料加工','混合供料'));
+alter table production_orders add column if not exists supplier_cost numeric(14,2) not null default 0 check (supplier_cost >= 0);
+alter table production_orders add column if not exists material_cost numeric(14,2) not null default 0 check (material_cost >= 0);
+alter table production_orders add column if not exists processing_cost numeric(14,2) not null default 0 check (processing_cost >= 0);
+alter table production_orders add column if not exists freight_cost numeric(14,2) not null default 0 check (freight_cost >= 0);
+alter table production_orders add column if not exists import_cost numeric(14,2) not null default 0 check (import_cost >= 0);
+alter table production_orders add column if not exists cost_currency text not null default 'CNY';
