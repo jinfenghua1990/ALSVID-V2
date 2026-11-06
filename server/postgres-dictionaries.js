@@ -22,6 +22,29 @@ function createDictionaryStore(connectionString) {
     } finally { client.release(); }
   }
   return {
+    async listFactories() {
+      return (await pool.query('SELECT id,name,country,contact,email,phone,address,status,created_at AS "createdAt",updated_at AS "updatedAt" FROM factories ORDER BY name')).rows;
+    },
+    async createFactory(input) {
+      const name=String(input.name||'').trim();
+      if(!name||name.length>120) throw new Error('工厂名称必填且不能超过 120 个字符');
+      const id=require('crypto').randomUUID();
+      return transaction('factory.create',`factories/${id}`,async client=>{
+        const row=(await client.query('INSERT INTO factories(id,name,country,contact,email,phone,address) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,name,country,contact,email,phone,address,status',[id,name,String(input.country||'中国').trim(),String(input.contact||'').trim(),String(input.email||'').trim(),String(input.phone||'').trim(),String(input.address||'').trim()])).rows[0];
+        return {before:null,after:row};
+      });
+    },
+    async updateFactory(id,input) {
+      return transaction('factory.update',`factories/${id}`,async client=>{
+        const prior=(await client.query('SELECT id,name,country,contact,email,phone,address,status FROM factories WHERE id=$1 FOR UPDATE',[id])).rows[0];
+        if(!prior) throw new Error('工厂不存在');
+        const next={...prior,...Object.fromEntries(Object.entries(input).filter(([key])=>['name','country','contact','email','phone','address','status'].includes(key)))};
+        next.name=String(next.name||'').trim();
+        if(!next.name||next.name.length>120||!['启用','停用'].includes(next.status)) throw new Error('工厂资料无效');
+        const after=(await client.query('UPDATE factories SET name=$1,country=$2,contact=$3,email=$4,phone=$5,address=$6,status=$7,updated_at=now() WHERE id=$8 RETURNING id,name,country,contact,email,phone,address,status',[next.name,next.country,next.contact,next.email,next.phone,next.address,next.status,id])).rows[0];
+        return {before:prior,after};
+      });
+    },
     async seedBaseline() {
       const c=await pool.connect();
       try { await c.query('BEGIN');
