@@ -1,12 +1,11 @@
 const { currentActor } = require('./audit-context');
 // Resource-level PostgreSQL operations; the API is not switched over yet.
-const { Pool } = require('pg');
+const { createPool } = require('./db-pool');
 const { SEED_FIELDS, SEED_COLORS } = require('./db');
 
 function createDictionaryStore(connectionString) {
   if (!connectionString) throw new Error('DATABASE_URL is required');
-  const pool = new Pool({ connectionString, max: 3, connectionTimeoutMillis: 10000 });
-  pool.on('connect', client => client.query('SET search_path TO alsvid_v2'));
+  const pool = createPool(connectionString, { max: 3, connectionTimeoutMillis: 10000 });
   const fieldColumns = `code, name_zh AS "nameZh", name_en AS "nameEn", name_de AS "nameDe", data_type AS type, unit, options, level, templates, required, searchable, sku_gen AS "skuGen", shop_visible AS "shopVisible", enabled`;
   const colorColumns = 'code, zh, en, de, hex, sort, enabled';
   async function transaction(action, target, work) {

@@ -1,8 +1,8 @@
-const {Pool}=require('pg');
+const {createPool}=require('./db-pool');
 const {randomUUID,randomBytes,scrypt:rawScrypt,timingSafeEqual,createHash}=require('crypto');
 const {promisify}=require('util');const scrypt=promisify(rawScrypt);
 function createAuth(connectionString){
- const pool=new Pool({connectionString,max:3,connectionTimeoutMillis:10000});pool.on('connect',c=>c.query('SET search_path TO alsvid_v2'));
+ const pool=createPool(connectionString,{max:3,connectionTimeoutMillis:10000});
  const digest=t=>createHash('sha256').update(t).digest('hex');
  const normalized=x=>String(x||'').trim().toLowerCase();
  const validUsername=x=>/^[a-z0-9._-]{3,64}$/.test(x)||(x.length<=254&&/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(x));

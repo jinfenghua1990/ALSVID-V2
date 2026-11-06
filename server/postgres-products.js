@@ -1,12 +1,11 @@
 const { currentActor } = require('./audit-context');
 // PostgreSQL resource operations. No connection is opened until configured.
-const { Pool } = require('pg');
+const { createPool } = require('./db-pool');
 const { randomUUID } = require('crypto');
 
 function createProductStore(connectionString) {
   if (!connectionString) throw new Error('DATABASE_URL is required');
-  const pool = new Pool({ connectionString, max: 3, connectionTimeoutMillis: 10000 });
-  pool.on('connect', client => client.query('SET search_path TO alsvid_v2'));
+  const pool = createPool(connectionString, { max: 3, connectionTimeoutMillis: 10000 });
   const projection = `id,kind,name,model,product_type AS "productType",status,ownership,uses,specs,version`;
   async function withAudit(action, target, fn) {
     const client = await pool.connect();

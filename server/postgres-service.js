@@ -1,10 +1,9 @@
 const { currentActor } = require('./audit-context');
-const { Pool } = require('pg');
+const { createPool } = require('./db-pool');
 const { randomUUID } = require('crypto');
 
 function createServiceStore(connectionString) {
-  const pool = new Pool({ connectionString, max: 3, connectionTimeoutMillis: 10000 });
-  pool.on('connect', client => client.query('SET search_path TO alsvid_v2'));
+  const pool = createPool(connectionString, { max: 3, connectionTimeoutMillis: 10000 });
   async function tx(action, target, fn) {
     const c=await pool.connect();
     try { await c.query('BEGIN'); const {before=null,after}=await fn(c); await c.query('INSERT INTO audit_log(actor,action,target,before_json,after_json) VALUES($1,$2,$3,$4,$5)', [currentActor(),action,target,before && JSON.stringify(before),after == null ? null : JSON.stringify(after)]); await c.query('COMMIT'); return after; }
