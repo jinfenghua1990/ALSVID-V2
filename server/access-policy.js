@@ -12,7 +12,8 @@ function apiAccessHook(auth,sessionToken){
   if(!auth)return reply.code(503).send({error:'账号服务不可用'});
   const user=await auth.user(sessionToken(req));
   if(!user)return reply.code(401).send({error:'请先登录'});
-  if(!mayAccessInternalApi(user.role,req.method,pathname))return reply.code(403).send({error:'没有访问权限'});
+  const portalRoles=req.routeOptions.config.portalRoles;
+  if(portalRoles ? !portalRoles.includes(user.role) : !mayAccessInternalApi(user.role,req.method,pathname))return reply.code(403).send({error:'没有访问权限'});
   req.user=user;
  };
 }

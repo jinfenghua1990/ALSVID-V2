@@ -14,6 +14,7 @@ const { createCompleteProductStore } = require('./create-complete');
 const { runAsActor, currentActor } = require('./audit-context');
 const { apiAccessHook } = require('./access-policy');
 const { createCatalogStore, registerCatalogRoutes } = require('./catalog');
+const { createPortalStore, registerPortalRoutes } = require('./portal');
 
 const PORT = Number(process.env.PORT || 8089);
 const app = Fastify({ logger: false, bodyLimit: 30 * 1024 * 1024 });
@@ -51,6 +52,8 @@ const completeProducts = process.env.DATABASE_URL ? createCompleteProductStore(p
 const objectStorage = createObjectStorage();
 const catalog = process.env.DATABASE_URL ? createCatalogStore(process.env.DATABASE_URL) : null;
 registerCatalogRoutes(app, { catalog, objectStorage });
+const portal = process.env.DATABASE_URL ? createPortalStore(process.env.DATABASE_URL) : null;
+registerPortalRoutes(app, { portal, auth });
 const db = postgres ? null : store.load();
 const persist = () => store.save(db);
 function audit(action, target, before, after) {

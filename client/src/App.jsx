@@ -14,6 +14,7 @@ import ProductionMaterialsPage from './pages/ProductionMaterialsPage.jsx';
 import ProductionAttachmentsPage from './pages/ProductionAttachmentsPage.jsx';
 import FinancePage from './pages/FinancePage.jsx';
 import CatalogAdminPage from './pages/CatalogAdminPage.jsx';
+import PortalAdminPage from './pages/PortalAdminPage.jsx';
 import { StorageBadge } from './cloud.jsx';
 
 const DOMAINS = [
@@ -125,6 +126,8 @@ export default function App({ user, onLogout }) {
         {view.type === 'editor' && <EditorPage id={view.id} meta={meta} onBack={() => setView({ type: 'list', kind: view.fromKind || 'vehicle' })} />}
         {view.type === 'workbench' && <WorkbenchPage onOpen={(nextDomain, key) => { setDomain(nextDomain); if (nextDomain === 'product') setView({ type: 'list', kind: key === 'parts' ? 'part' : 'vehicle' }); else if (nextDomain === 'service') { const next = key === 'repairsOpen' ? 'repair' : key === 'fitments' ? 'fit' : key === 'substitutes' ? 'substitute' : 'vin'; setServiceSection(next); setView({ type: 'service', section: next }); } }} />}
         {view.type === 'service' && <ServicePage section={view.section || serviceSection} onSectionChange={(next) => { setServiceSection(next); setView({ type: 'service', section: next }); }} />}
+        {domain === 'settings' && <div className="tabs"><button className={'tab'+(view.type==='accounts'?' active':'')} onClick={()=>setView({type:'accounts'})}>内部账号</button><button className={'tab'+(view.type==='portal-admin'?' active':'')} onClick={()=>setView({type:'portal-admin'})}>门户账号与车辆审核</button></div>}
+        {view.type === 'portal-admin' && <PortalAdminPage user={user} />}
         {view.type === 'accounts' && <AccountPage user={user} onLogout={onLogout} />}
         {view.type === 'production' && <ProductionPage />}
         {view.type === 'finance' && <FinancePage />}
