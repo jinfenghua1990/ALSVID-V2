@@ -184,6 +184,45 @@ create table if not exists app_sessions (
   expires_at timestamptz not null,
   created_at timestamptz not null default now()
 );
+alter table app_users drop constraint if exists app_users_role_check;
+alter table app_users add constraint app_users_role_check check (role in ('admin','viewer','owner','dealer'));
+create table if not exists portal_account_reviews (
+  user_id text primary key references app_users(id),
+  note text not null,
+  reviewed_by text not null,
+  reviewed_at timestamptz not null default now()
+);
+create table if not exists portal_vehicle_requests (
+  id text primary key,
+  user_id text not null references app_users(id),
+  vin text not null,
+  note text not null,
+  status text not null default 'pending' check (status in ('pending','approved','rejected','revoked')),
+  decision_note text not null default '',
+  reviewed_by text not null default '',
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create unique index if not exists portal_vehicle_request_pending_idx on portal_vehicle_requests(user_id,vin) where status in ('pending','approved');
+create table if not exists portal_vehicle_access (
+  request_id text primary key references portal_vehicle_requests(id),
+  user_id text not null references app_users(id),
+  vin_id text not null references vins(id),
+  role text not null check (role in ('owner','dealer')),
+  revoked_at timestamptz
+);
+create unique index if not exists portal_active_owner_idx on portal_vehicle_access(vin_id) where role='owner' and revoked_at is null;
+create index if not exists portal_vehicle_user_idx on portal_vehicle_access(user_id) where revoked_at is null;
+create table if not exists portal_service_requests (
+  id text primary key,
+  user_id text not null references app_users(id),
+  vin_id text not null references vins(id),
+  description text not null,
+  status text not null default 'submitted' check (status in ('submitted','accepted','rejected')),
+  reply_note text not null default '',
+  repair_id text unique references repairs(id),
+  created_at timestamptz not null default now()
+);
 create table if not exists production_orders (
   id text primary key,
   order_no text not null unique,
