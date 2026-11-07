@@ -1,0 +1,56 @@
+name: Deploy V2 to Cloud Run
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+env:
+  PROJECT_ID: alsvid-prod
+  REGION: asia-east1
+  SERVICE: alsvid-v2
+  REPOSITORY: alsvid-v2
+  RUNTIME_SERVICE_ACCOUNT: alsvid-runtime@alsvid-prod.iam.gserviceaccount.com
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/51910044792/locations/global/workloadIdentityPools/github/providers/alsvid-next
+          service_account: alsvid-github-deploy@alsvid-prod.iam.gserviceaccount.com
+      - uses: google-github-actions/setup-gcloud@v2
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGION }}-docker.pkg.dev
+      - name: Build and push image
+        run: |
+          image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE}:${GITHUB_SHA}"
+          docker build --tag "$image" .
+          docker push "$image"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+      - name: Deploy isolated V2 service
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --project="$PROJECT_ID" \
+            --region="$REGION" \
+            --image="$IMAGE" \
+            --service-account="$RUNTIME_SERVICE_ACCOUNT" \
+            --allow-unauthenticated \
+            --ingress=all \
+            --set-env-vars '^@^ALSVID_GCP_PROJECT=alsvid-prod@ALSVID_SECRET_NAME=alsvid-v2-runtime@ALSVID_BIND_HOST=0.0.0.0@ALSVID_PUBLIC_ORIGINS=https://www.alsvidbike.com,https://admin.alsvidbike.com,https://my.alsvidbike.com,https://dealer.alsvidbike.com' \
+            --quiet
+      - name: Add temporary Cloud Run origin for verification
+        run: |
+          url="$(gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)')"
+          gcloud run services update "$SERVICE" \
+            --project="$PROJECT_ID" \
+            --region="$REGION" \
+            --update-env-vars "^@^ALSVID_PUBLIC_ORIGINS=https://www.alsvidbike.com,https://admin.alsvidbike.com,https://my.alsvidbike.com,https://dealer.alsvidbike.com@$url" \
+            --quiet
+          echo "CLOUD_RUN_URL=$url" >> "$GITHUB_ENV"
+      - name: Verify service health and anonymous boundaries
+        run: |
+          test "$(curl -fsS -o /dev/null -w '%{http_code}' "$CLOUD_RUN_URL/api/health")" = 200
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "$CLOUD_RUN_URL/api/portal/vehicles")" = 401
+          test "$(curl -fsS "$CLOUD_RUN_URL/api/catalog/products?lang=en")" = '{"items":[],"hasMore":false}'
