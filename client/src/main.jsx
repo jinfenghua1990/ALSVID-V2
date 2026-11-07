@@ -3,9 +3,13 @@ import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import CatalogPage from './pages/CatalogPage.jsx';
 import PortalPage from './pages/PortalPage.jsx';
+import HomePage from './pages/HomePage.jsx';
 import './styles.css';
 
-const portalKind = window.location.pathname === '/my' ? 'owner' : window.location.pathname === '/dealer' ? 'dealer' : null;
+const hostname = window.location.hostname.toLowerCase();
+const portalKind = window.location.pathname === '/my' || hostname.startsWith('my.') ? 'owner' : window.location.pathname === '/dealer' || hostname.startsWith('dealer.') ? 'dealer' : null;
+const publicHome = window.location.pathname === '/www' || hostname.startsWith('www.');
+const homeLang = window.location.pathname === '/www/de' ? 'de' : window.location.pathname === '/www/zh' ? 'zh' : (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : (navigator.language || '').toLowerCase().startsWith('de') ? 'de' : 'en';
 function AuthGate(){
   const [status,setStatus]=useState(null),[username,setUsername]=useState(''),[password,setPassword]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false);
   const refresh=async()=>{const r=await fetch('/api/auth/status');if(!r.ok)throw Error('无法连接账号服务');setStatus(await r.json())};
@@ -21,4 +25,4 @@ function AuthGate(){
 const catalogRoute = window.location.pathname.match(/^\/catalog\/(zh|en|de)(?:\/([^/]+))?\/?$/);
 let productId;
 try { productId = catalogRoute?.[2] ? decodeURIComponent(catalogRoute[2]) : undefined; } catch (_) { productId = catalogRoute[2]; }
-createRoot(document.getElementById('root')).render(catalogRoute ? <CatalogPage lang={catalogRoute[1]} productId={productId} /> : <AuthGate />);
+createRoot(document.getElementById('root')).render(catalogRoute ? <CatalogPage lang={catalogRoute[1]} productId={productId} /> : publicHome ? <HomePage lang={homeLang} /> : <AuthGate />);
