@@ -29,6 +29,6 @@ jobs:
       - run: npm ci --prefix server --ignore-scripts
       - run: npm ci --prefix client --ignore-scripts
       - run: npm run build --prefix client
-      - run: node --test --test-concurrency=1 server/test/catalog.test.js server/test/portal.test.js server/test/access-policy.test.js server/test/active-delivery-warehouse.test.js server/test/receive-delivery-state.test.js server/test/warehouse-delete.test.js client/test/receiptRetry.test.js
+      - run: node --test --test-concurrency=1 server/test/catalog.test.js server/test/portal.test.js server/test/network-policy.test.js server/test/access-policy.test.js server/test/active-delivery-warehouse.test.js server/test/receive-delivery-state.test.js server/test/warehouse-delete.test.js client/test/receiptRetry.test.js
         env:
           TEST_DATABASE_URL: postgresql://catalog_test:catalog_test@127.0.0.1:5432/alsvid_v2_test_catalog
