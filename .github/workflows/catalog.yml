@@ -1,1 +1,34 @@
 name: Catalog and portal access
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: catalog_test
+          POSTGRES_PASSWORD: catalog_test
+          POSTGRES_DB: alsvid_v2_test_catalog
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --prefix server --ignore-scripts
+      - run: npm ci --prefix client --ignore-scripts
+      - run: npm run build --prefix client
+      - run: node --test --test-concurrency=1 server/test/catalog.test.js server/test/portal.test.js server/test/network-policy.test.js server/test/access-policy.test.js server/test/active-delivery-warehouse.test.js server/test/receive-delivery-state.test.js server/test/warehouse-delete.test.js client/test/receiptRetry.test.js
+        env:
+          TEST_DATABASE_URL: postgresql://catalog_test:catalog_test@127.0.0.1:5432/alsvid_v2_test_catalog
