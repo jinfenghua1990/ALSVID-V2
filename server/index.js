@@ -10,6 +10,7 @@ const { createServiceStore } = require('./postgres-service');
 const { createObjectStorage } = require('./object-storage');
 const { createAuth } = require('./auth');
 const { createInventory } = require('./inventory');
+const { createInventoryReservations } = require('./inventory-reservations');
 const { createCompleteProductStore } = require('./create-complete');
 const { runAsActor, currentActor } = require('./audit-context');
 const { apiAccessHook } = require('./access-policy');
@@ -42,6 +43,7 @@ app.post('/api/accounts/:id/password',async(req,reply)=>{if(req.params.id===req.
 const pgProducts = process.env.DATABASE_URL ? createProductStore(process.env.DATABASE_URL) : null;
 const pgService = process.env.DATABASE_URL ? createServiceStore(process.env.DATABASE_URL) : null;
 const inventory = process.env.DATABASE_URL ? createInventory(process.env.DATABASE_URL) : null;
+const inventoryReservations = process.env.DATABASE_URL ? createInventoryReservations(process.env.DATABASE_URL) : null;
 const completeProducts = process.env.DATABASE_URL ? createCompleteProductStore(process.env.DATABASE_URL) : null;
 const objectStorage = createObjectStorage();
 const catalog = process.env.DATABASE_URL ? createCatalogStore(process.env.DATABASE_URL) : null;
@@ -384,6 +386,10 @@ app.patch('/api/factories/:id',async(req,reply)=>{if(!postgres)return reply.code
 app.get('/api/warehouses',async(req,reply)=>inventory?inventory.listWarehouses():reply.code(503).send({error:'库存服务不可用'}));
 app.get('/api/stock',async(req,reply)=>inventory?inventory.listStock():reply.code(503).send({error:'库存服务不可用'}));
 app.get('/api/stock/movements',async(req,reply)=>inventory?inventory.listMovements():reply.code(503).send({error:'库存服务不可用'}));
+app.get('/api/inventory/reservations',async(req,reply)=>{if(!inventoryReservations)return reply.code(503).send({error:'库存预占服务不可用'});try{return await inventoryReservations.list(String(req.query.status||''))}catch(e){return reply.code(400).send({error:e.message==='预占状态无效'?e.message:'读取库存预占失败'})}});
+app.post('/api/inventory/reservations',async(req,reply)=>{if(!inventoryReservations)return reply.code(503).send({error:'库存预占服务不可用'});try{return reply.code(201).send(await inventoryReservations.reserve(req.body||{}))}catch(e){const allowed=['库存预占信息无效','配件 SKU 或启用仓库不存在','该业务单已有不同数量的活动预占','库存账本与仓库余额不一致，已暂停预占','可用库存不足'];return reply.code(e.code==='23505'?409:e.message==='配件 SKU 或启用仓库不存在'?404:allowed.includes(e.message)?400:409).send({error:e.code==='23505'?'该业务单已有活动预占':allowed.includes(e.message)?e.message:'创建库存预占失败'})}});
+app.post('/api/inventory/reservations/:id/release',async(req,reply)=>{if(!inventoryReservations)return reply.code(503).send({error:'库存预占服务不可用'});try{return await inventoryReservations.release(req.params.id,req.body||{})}catch(e){const allowed=['预占编号无效','释放说明不能超过 500 个字符','库存预占不存在','只有活动预占可以释放'];return reply.code(e.message==='库存预占不存在'?404:allowed.includes(e.message)?400:409).send({error:allowed.includes(e.message)?e.message:'释放库存预占失败'})}});
+
 app.patch('/api/warehouses/:id',async(req,reply)=>{if(!inventory)return reply.code(503).send({error:'库存服务不可用'});try{return await inventory.updateWarehouse(req.params.id,req.body||{})}catch(e){const allowed=['仓库资料无效','仓库不存在'];return reply.code(e.code==='23505'?409:e.message==='仓库不存在'?404:400).send({error:e.code==='23505'?'仓库编号或名称已存在':allowed.includes(e.message)?e.message:'更新仓库失败'})}});
 app.delete('/api/warehouses/:id',async(req,reply)=>{if(!inventory)return reply.code(503).send({error:'库存服务不可用'});try{return await inventory.deleteWarehouse(req.params.id)}catch(e){return reply.code(e.message==='仓库不存在'?404:400).send({error:e.code==='23503'?'仓库存在库存或关联业务记录，不能删除':['仓库不存在','仓库存在库存或关联业务记录，不能删除'].includes(e.message)?e.message:'删除仓库失败'})}});
 app.post('/api/warehouses',async(req,reply)=>{if(!inventory)return reply.code(503).send({error:'库存服务不可用'});try{return reply.code(201).send(await inventory.createWarehouse(req.body||{}))}catch(e){return reply.code(e.code==='23505'?409:400).send({error:e.code==='23505'?'仓库名称已存在':e.message==='仓库名称和类型无效'?e.message:'创建仓库失败'})}});
