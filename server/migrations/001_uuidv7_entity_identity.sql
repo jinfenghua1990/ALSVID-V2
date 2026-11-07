@@ -40,7 +40,39 @@ BEGIN
 END;
 $$;
 
-DO $$
+CREATE OR REPLACE FUNCTION alsvid_v2.sync_legacy_uuid_link()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+DECLARE
+  row_data jsonb;
+  legacy_value text;
+  supplied_uuid text;
+  actual_uuid uuid;
+BEGIN
+  row_data := to_jsonb(NEW);
+  legacy_value := row_data ->> TG_ARGV[0];
+  IF legacy_value IS NULL THEN
+    row_data := jsonb_set(row_data, ARRAY[TG_ARGV[1]], 'null'::jsonb, true);
+  ELSE
+    EXECUTE format(
+      'SELECT entity_uuid FROM alsvid_v2.%I WHERE %I::text = $1',
+      TG_ARGV[2], TG_ARGV[3]
+    ) INTO actual_uuid USING legacy_value;
+    IF actual_uuid IS NULL THEN
+      RAISE EXCEPTION 'No UUID v7 target for %.%', TG_ARGV[2], TG_ARGV[3];
+    END IF;
+    supplied_uuid := row_data ->> TG_ARGV[1];
+    IF supplied_uuid IS NOT NULL AND supplied_uuid <> actual_uuid::text THEN
+      RAISE EXCEPTION 'Legacy ID and UUID v7 reference do not match';
+    END IF;
+    row_data := jsonb_set(row_data, ARRAY[TG_ARGV[1]], to_jsonb(actual_uuid), true);
+  END IF;
+  RETURN jsonb_populate_record(NEW, row_data);
+END;
+$;
+
+DO $
 DECLARE
   table_name text;
   link record;
@@ -195,6 +227,16 @@ BEGIN
       'ALTER TABLE alsvid_v2.%I ADD CONSTRAINT %I FOREIGN KEY (%I) REFERENCES alsvid_v2.%I(entity_uuid)',
       link.child_table, link.child_table || '_' || link.uuid_column || '_fkey',
       link.uuid_column, link.parent_table
+    );
+    EXECUTE format(
+      'DROP TRIGGER IF EXISTS %I ON alsvid_v2.%I',
+      link.child_table || '_sync_' || link.uuid_column,
+      link.child_table
+    );
+    EXECUTE format(
+      'CREATE TRIGGER %I BEFORE INSERT OR UPDATE ON alsvid_v2.%I FOR EACH ROW EXECUTE FUNCTION alsvid_v2.sync_legacy_uuid_link(%L, %L, %L, %L)',
+      link.child_table || '_sync_' || link.uuid_column,
+      link.child_table, link.legacy_column, link.uuid_column, link.parent_table, link.parent_column
     );
   END LOOP;
 END;
