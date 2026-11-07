@@ -1,6 +1,7 @@
 name: Catalog and portal access
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches: [main]
 permissions:
@@ -33,4 +34,3 @@ jobs:
       - run: node --test --test-concurrency=1 server/test/catalog.test.js server/test/portal.test.js server/test/network-policy.test.js server/test/access-policy.test.js server/test/active-delivery-warehouse.test.js server/test/receive-delivery-state.test.js server/test/warehouse-delete.test.js client/test/receiptRetry.test.js
         env:
           TEST_DATABASE_URL: postgresql://catalog_test:catalog_test@127.0.0.1:5432/alsvid_v2_test_catalog
-2b4cfd1e3f3e9a3fb91a2b771728fd3dce0eb1bd
